@@ -33,7 +33,7 @@ data class Message(
 
 @Serializable
 data class Data(
-    @SerialName("messages") val messages: List<Message>
+    @SerialName("messages") var messages: List<Message>
 )
 
 @Serializable
