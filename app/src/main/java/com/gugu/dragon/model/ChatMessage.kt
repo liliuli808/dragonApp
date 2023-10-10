@@ -1,5 +1,6 @@
 package com.gugu.dragon.model
 
+import kotlinx.serialization.Serializable
 
 
 data class ChatMessageModel(
