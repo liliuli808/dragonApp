@@ -13,8 +13,13 @@ data class Message(
     @SerialName("newStudent") val newStudent: Boolean = true,
     @SerialName("body") val body: String = "",
     @SerialName("uuid") val uuid: String = "",
-    @SerialName("originalMessage") val originalMessage:String = ""
+    @SerialName("originalMessage") val originalMessage: String = ""
 )
+
+@Serializable
+class OriginalMessage {
+    @SerialName("body") val body: String = ""
+}
 
 @Serializable
 data class Data(

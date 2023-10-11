@@ -1,10 +1,12 @@
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,8 +16,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import coil.compose.rememberAsyncImagePainter
 import com.gugu.dragon.model.ChatMessageModel
+import com.gugu.dragon.model.OriginalMessage
 import com.gugu.dragon.model.Result
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -23,7 +27,8 @@ import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
-import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @Composable
 fun ChatScreen() {
@@ -72,10 +77,15 @@ fun ChatScreen() {
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxWidth()
+                    .fillMaxWidth(),
             ) {
                 items(messages) { message ->
                     ChatMessage(message)
+                    Divider( // 添加线间隔
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        color = Color.LightGray,
+                        thickness = 1.dp
+                    )
                 }
             }
         }
@@ -127,14 +137,19 @@ fun fetchDataFromApi(): Collection<ChatMessageModel> {
         result.data.messages = emptyList()
     }
 
-    return result.data.messages.map { message ->
+    return result.data.messages.reversed().map { message ->
+        var originalBody = ""
+        if (message.originalMessage != "") {
+            val originalMess = jsonConfig.decodeFromString<OriginalMessage>(message.originalMessage)
+            originalBody = originalMess.body
+        }
         ChatMessageModel(
             message.nickName,
-            message.body,
-            message.originalMessage,
+            removeHtmlTags(message.body),
+            removeHtmlTags(originalBody),
             message.messageTime,
             extractImageUrls(message.body),
-            extractImageUrls(message.originalMessage)
+            extractImageUrls(originalBody)
         )
     }
 
@@ -159,6 +174,35 @@ fun extractImageUrls(text: String): List<String> {
 
     println(imageUrls)
     return imageUrls
+}
+
+fun removeHtmlTags(input: String): String {
+    // 使用正则表达式匹配 HTML 标签
+    var regex = Regex("<.*?>")
+    var res = regex.replace(input, "")
+
+    regex = """\[face\].*?\[/face\]""".toRegex()
+    res = regex.replace(res, "")
+
+    regex = """\[img\].*?\[/img\]""".toRegex()
+
+    res.replace("&nbsp;", "")
+    return regex.replace(res, "")
+}
+
+
+fun convertTimestampToString(timestamp: String): String {
+    val inputFormat = SimpleDateFormat("yyyyMMddHHmmss", Locale.CHINA)
+    val outputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss",Locale.CHINA)
+
+    try {
+        val date = inputFormat.parse(timestamp) ?: return ""
+        return outputFormat.format(date)
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+
+    return ""
 }
 
 @Composable
@@ -187,47 +231,71 @@ fun ChatMessage(message: ChatMessageModel) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(text = message.sender, fontWeight = FontWeight.Bold)
             }
-            Text(text = message.time, color = Color.Gray)
+            Text(text = convertTimestampToString(message.time), color = Color.Gray)
         }
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (message.originalText.isNotBlank()) {
-                Text(text = message.originalText)
-            }
 
-            if (message.originalResource.isNotEmpty()) {
-                for (imageUrl in message.originalResource) {
-                    Image(
-                        painter = rememberAsyncImagePainter(model = imageUrl),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp),
-                        contentScale = ContentScale.Crop
-                    )
-                }
-            }
+        if (message.originalText.isNotBlank()) {
+            Text(text = "问：" + removeHtmlTags(message.originalText))
+        }
 
-            Text(text = message.text)
-
-            if (message.imageResource.isNotEmpty()) {
-                for (imageUrl in message.imageResource) {
-                    Image(
-                        painter = rememberAsyncImagePainter(model = imageUrl),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp),
-                        contentScale = ContentScale.Crop
-                    )
-                }
+        if (message.originalResource.isNotEmpty()) {
+            for (imageUrl in message.originalResource) {
+                Image(
+                    painter = rememberAsyncImagePainter(model = imageUrl),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .height(200.dp),
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit
+                )
             }
         }
 
+        if (message.originalText != "") {
+            Text(text = "答:" + removeHtmlTags(message.text))
+        } else {
+            Text(text = removeHtmlTags(message.text))
+        }
+
+
+        if (message.imageResource.isNotEmpty()) {
+            for (imageUrl in message.imageResource) {
+                Image(
+                    painter = rememberAsyncImagePainter(model = imageUrl),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .height(200.dp)
+                        .clickable {
+                            ShowImageDialog(imageUrl) {
+                                // 点击对话框时关闭对话框
+                            }
+                        },
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit
+                )
+            }
+        }
     }
+
 }
 
-
+@Composable
+fun ShowImageDialog(imageUrl: String, onDismiss: () -> Unit) {
+    Dialog(
+        onDismissRequest = onDismiss
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = rememberAsyncImagePainter(model = imageUrl),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit
+            )
+        }
+    }
+}
