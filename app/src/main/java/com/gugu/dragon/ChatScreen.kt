@@ -5,8 +5,16 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,26 +22,39 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import coil.compose.rememberAsyncImagePainter
+import com.gugu.dragon.R
 import com.gugu.dragon.model.ChatMessageModel
 import com.gugu.dragon.model.OriginalMessage
 import com.gugu.dragon.model.Result
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
+import soup.compose.photo.ExperimentalPhotoApi
+import soup.compose.photo.rememberPhotoState
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen() {
 
     val messages = remember { mutableStateListOf<ChatMessageModel>() }
+
+    val uuidMap =  remember {mutableMapOf<String, Boolean>() }
+
+    // 声明一个可变状态，用于跟踪所选的筛选条件
+    var selectedSender by remember { mutableStateOf<String?>(null) }
+
+    var senderState by remember{ mutableStateOf(true) }
 
 
     // 声明一个可变状态，用于跟踪加载状态
@@ -48,12 +69,39 @@ fun ChatScreen() {
             // 更新消息列表
             messages.addAll(chatData)
 
+            for (chat in chatData) {
+                uuidMap[chat.uuid] = true
+            }
+
             // 标记加载完成
             isLoading = false
         } catch (e: Exception) {
             // 处理网络请求失败或异常情况
             e.printStackTrace()
             isLoading = false
+        }
+
+
+        while (true) {
+            try {
+                val newMessages = withContext(Dispatchers.IO) {
+                    fetchDataFromApi()
+                }
+
+                val res =  mutableStateListOf<ChatMessageModel>()
+                for (message in newMessages) {
+                    if (uuidMap[message.uuid] != null) {
+                        continue
+                    }
+                    res.add(message)
+                    uuidMap[message.uuid] = true
+                }
+                messages.addAll(res)
+            } catch (e: Exception) {
+                // 处理异常
+                e.printStackTrace()
+            }
+            delay(1000)
         }
     }
 
@@ -65,6 +113,7 @@ fun ChatScreen() {
             .fillMaxSize()
             .background(Color.White)
     ) {
+
         if (isLoading) {
             // 如果数据还在加载中，显示加载指示器或其他 UI
             CircularProgressIndicator(
@@ -73,13 +122,14 @@ fun ChatScreen() {
                     .padding(16.dp)
             )
         } else {
+
             // 数据加载完成后，显示消息列表
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
             ) {
-                items(messages) { message ->
+                items(messages.reversed()) { message ->
                     ChatMessage(message)
                     Divider( // 添加线间隔
                         modifier = Modifier.padding(vertical = 8.dp),
@@ -137,13 +187,14 @@ fun fetchDataFromApi(): Collection<ChatMessageModel> {
         result.data.messages = emptyList()
     }
 
-    return result.data.messages.reversed().map { message ->
+    return result.data.messages.map { message ->
         var originalBody = ""
         if (message.originalMessage != "") {
             val originalMess = jsonConfig.decodeFromString<OriginalMessage>(message.originalMessage)
             originalBody = originalMess.body
         }
         ChatMessageModel(
+            message.uuid,
             message.nickName,
             removeHtmlTags(message.body),
             removeHtmlTags(originalBody),
@@ -193,7 +244,7 @@ fun removeHtmlTags(input: String): String {
 
 fun convertTimestampToString(timestamp: String): String {
     val inputFormat = SimpleDateFormat("yyyyMMddHHmmss", Locale.CHINA)
-    val outputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss",Locale.CHINA)
+    val outputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.CHINA)
 
     try {
         val date = inputFormat.parse(timestamp) ?: return ""
@@ -207,6 +258,7 @@ fun convertTimestampToString(timestamp: String): String {
 
 @Composable
 fun ChatMessage(message: ChatMessageModel) {
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -246,7 +298,7 @@ fun ChatMessage(message: ChatMessageModel) {
                     painter = rememberAsyncImagePainter(model = imageUrl),
                     modifier = Modifier
                         .fillMaxSize()
-                        .height(200.dp),
+                        .height(500.dp),
                     contentDescription = null,
                     contentScale = ContentScale.Fit
                 )
@@ -266,36 +318,13 @@ fun ChatMessage(message: ChatMessageModel) {
                     painter = rememberAsyncImagePainter(model = imageUrl),
                     modifier = Modifier
                         .fillMaxSize()
-                        .height(200.dp)
-                        .clickable {
-                            ShowImageDialog(imageUrl) {
-                                // 点击对话框时关闭对话框
-                            }
-                        },
+                        .height(500.dp),
                     contentDescription = null,
                     contentScale = ContentScale.Fit
                 )
             }
         }
+
     }
 
-}
-
-@Composable
-fun ShowImageDialog(imageUrl: String, onDismiss: () -> Unit) {
-    Dialog(
-        onDismissRequest = onDismiss
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Image(
-                painter = rememberAsyncImagePainter(model = imageUrl),
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Fit
-            )
-        }
-    }
 }
