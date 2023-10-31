@@ -43,7 +43,7 @@ import soup.compose.photo.rememberPhotoState
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 fun ChatScreen() {
 
@@ -51,10 +51,6 @@ fun ChatScreen() {
 
     val uuidMap =  remember {mutableMapOf<String, Boolean>() }
 
-    // 声明一个可变状态，用于跟踪所选的筛选条件
-    var selectedSender by remember { mutableStateOf<String?>(null) }
-
-    var senderState by remember{ mutableStateOf(true) }
 
 
     // 声明一个可变状态，用于跟踪加载状态
