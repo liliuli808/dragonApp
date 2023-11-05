@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.gugu.dragon"
-    compileSdk = 33
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.gugu.dragon"
@@ -62,7 +62,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material3:material3:1.2.0-alpha10")
     implementation("io.coil-kt:coil-compose:2.4.0")
     implementation("io.github.fornewid:photo-compose:1.0.1")
     implementation("com.squareup.okhttp3:okhttp:4.9.1")

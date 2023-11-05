@@ -13,6 +13,7 @@ import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -31,6 +32,8 @@ import com.gugu.dragon.R
 import com.gugu.dragon.model.ChatMessageModel
 import com.gugu.dragon.model.OriginalMessage
 import com.gugu.dragon.model.Result
+import com.gugu.dragon.utils.extractImageUrls
+import com.gugu.dragon.utils.removeHtmlTags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -127,10 +130,11 @@ fun ChatScreen() {
             ) {
                 items(messages.reversed()) { message ->
                     ChatMessage(message)
-                    Divider( // 添加线间隔
+                    HorizontalDivider(
+                        // 添加线间隔
                         modifier = Modifier.padding(vertical = 8.dp),
-                        color = Color.LightGray,
-                        thickness = 1.dp
+                        thickness = 1.dp,
+                        color = Color.LightGray
                     )
                 }
             }
@@ -202,40 +206,6 @@ fun fetchDataFromApi(): Collection<ChatMessageModel> {
 
 }
 
-fun extractImageUrls(text: String): List<String> {
-    var imageUrlRegex = Regex("\\[img](.*?)\\[/img]")
-    var matchResults = imageUrlRegex.findAll(text)
-    val imageUrls = mutableListOf<String>()
-
-    for (matchResult in matchResults) {
-        val imageUrl = matchResult.groupValues[1]
-        imageUrls.add(imageUrl)
-    }
-
-    imageUrlRegex = Regex("\\[face](.*?)\\[/face]")
-    matchResults = imageUrlRegex.findAll(text)
-    for (matchResult in matchResults) {
-        val imageUrl = matchResult.groupValues[1]
-        imageUrls.add(imageUrl)
-    }
-
-    println(imageUrls)
-    return imageUrls
-}
-
-fun removeHtmlTags(input: String): String {
-    // 使用正则表达式匹配 HTML 标签
-    var regex = Regex("<.*?>")
-    var res = regex.replace(input, "")
-
-    regex = """\[face\].*?\[/face\]""".toRegex()
-    res = regex.replace(res, "")
-
-    regex = """\[img\].*?\[/img\]""".toRegex()
-
-    res.replace("&nbsp;", "")
-    return regex.replace(res, "")
-}
 
 
 fun convertTimestampToString(timestamp: String): String {
