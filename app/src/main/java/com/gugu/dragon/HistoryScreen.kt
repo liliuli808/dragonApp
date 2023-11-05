@@ -53,7 +53,7 @@ import java.util.Calendar
 import java.util.Locale
 
 class HistoryViewModel : ViewModel() {
-    val historyMessages = mutableListOf<ChatMessageModel>()
+    private val historyMessages = mutableListOf<ChatMessageModel>()
 
     fun fetchHistoryData(date: String, onComplete: (List<ChatMessageModel>) -> Unit) {
         viewModelScope.launch {
